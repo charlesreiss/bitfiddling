@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html><head><title>Bitwise operation practice site</title>
+<script src="showdown.js"></script>
+<style>
+    th,td { align: left; }
+    body, code, pre, tt, input, textarea { font-size: 12pt; }
+</style>
+<script>//<!--
+
+var socket;
+var md = new showdown.Converter();
+
+var user = 'lat7h';
+var token = 'safdsfagfd';
+var loaded_at = new Date().getTime();
+
+var allops = ["!","~", "*","%","/", "+","-", "<<",">>", "&","^","|"];
+
+function resultRow(html, display, key, results, limit) {
+    if (key in results && results[key] != 0) {
+        html.push('<tr><th>',display,'</th><td>');
+        if (key == 'const') html.push('0x', Number(results[key]).toString(16));
+        else html.push(results[key]);
+        if (key in limit && limit[key] >= 0) {
+            var tmp = limit[key];
+            if (key == 'const') tmp = '0x' + Number(tmp).toString(16);
+            if (limit[key] < results[key]) html.push(' (<span class="error">limit: ', tmp,'</span>)');
+            else                           html.push(' (<span class="good">limit: ', tmp,'</span>)');
+        }
+        html.push('</td></tr>');
+    }
+} 
+
+function showResults(results, limits) {
+    var html = [
+        'As time of last submission, your results were:',
+        '<table><tbody>',
+        '<tr><th>Score</th><td>', results.score, '%</td></tr>'
+    ];
+    resultRow(html, 'Total ops', 'ops', results, limits);
+    resultRow(html, 'Constant', 'const', results, limits);
+
+    for(var i=0; i<allops.length; i+=1) {
+        resultRow(html, '<code>'+allops[i]+'</code>', allops[i], results, limits)
+    }
+    document.getElementById('results').innerHTML = html.join('');
+}
+
+function connect() {
+    setText("connecting "+user+"...");
+    socket = new WebSocket(getBaseURL() + "/ws");
+    socket.onopen = function() {
+        setText("connected; live updates enabled");
+        socket.send(JSON.stringify({user:user, token:token}));
+    }
+    socket.onmessage = function(message) {
+        console.log("message: " + message.data);
+        var data = JSON.parse(message.data);
+        var kind = data["type"];
+        delete data["."];
+        if (kind == 'error') {
+            console.log(data.message);
+            setText('ERROR: ' + data.message);
+        } else if (kind == "welcome") {
+            socket.send(JSON.stringify({req:'status'}));
+        } else if (kind == "board") {
+            var html = [
+                '<h1>',data['task'],'</h1>',
+                '<style>tbody th { text-align: left; } thead th, td { text-align: center; padding: 0ex 1ex; }</style>',
+                '<table><thead><tr><th>Nickname</th><th>Total Ops</th><th>Constant</th>'
+            ];
+            for(var i=0; i<allops.length; i+=1) html.push('<th><tt>',allops[i],'</tt></th>');
+            html.push('</tr></thead><tbody>');
+            for(var k in data['board']) {
+                html.push('<tr><th>',k,'</th>');
+                if ('ops' in data.board[k]) html.push('<td>',data.board[k].ops,'</td>');
+                else html.push('<td/>');
+                if ('const' in data.board[k]) html.push('<td>0x',Number(data.board[k]['const']).toString(16),'</td>');
+                else html.push('<td/>');
+                for(var i=0; i<allops.length; i+=1) 
+                    if (allops[i] in data['board'][k] && data.board[k][allops[i]] != 0)
+                        html.push('<td>',data['board'][k][allops[i]],'</td>');
+                    else
+                        html.push('<td></td>');
+                html.push('</tr>');
+            }
+            html.push('</tbody></table>');
+            setPage(html);
+        } else if (kind == "you") {
+            var html = ['<table><thead><tr><th>Task</th><th>Status</th><th>Scoreboard</th></tr></thead><tbody>'];
+            for(var k in data['status']) {
+                var v = data['status'][k];
+                html.push('<tr><td><input type="button" value="',k,
+                    '" onclick="request(\'',k,'\')"></td><td>',
+                    v === null ? 'not started' : v+'%',
+                    '</td><td><input type="button" value="',k,
+                    '" onclick="scoreboard(\'',k,'\')"></td></tr>');
+            }
+            html.push('</tbody></table>');
+            html.push(
+                '<p>Name to show on scoreboards: <input type="text" id="nick" name="nick" value="',
+                data.nickname,
+                '"/> <input type="button" value="Change nickname" onclick="nickname()"/><br/>Note: do not use a name that a fellow student might reasonably consider offensive.</p>'
+            );
+            setPage(html);
+        } else if (kind == "task") {
+            var html = [
+                '<h1>',data.task,'</h1>',
+                '<p>',md.makeHtml(data.description),'</p>',
+                '<p><strong>Provided input(s):</strong> <code>',
+                data.provided.join('</tt> and <tt>'),
+                '</code></p>',
+                '<textarea id="code" name="code" rows="20" cols="60"></textarea><br/>',
+                '<input type="button" onclick="submit(\'',data.task,'\')" value="submit code"></input>',
+                '<div id="results"></div>',
+            ];
+            setPage(html);
+            if (data.code) // this way to ensure escaping...
+                document.getElementById('code').appendChild(document.createTextNode(data.code));
+            if (data.results) // this way to avoid code duplication
+                showResults(data.results, data.limits);
+        } else if (kind == "results") {
+            if(data.results.score == 0) {
+                var res = document.getElementById('results');
+                var html = [
+                    '<p>', data.message, '</p>',
+                    '<table><thead><th>Variable</th><th>Value</th></thead><tbody>'
+                ];
+                for(var n in data.results) if (n != 'score')
+                    html.push('<tr><td><code>',n,'</code></td><td>',Number(data.results[n] < 0 ? (1 + ~data.results[n]) : data.results[n]).toString(2).padStart(32,'0'),'<sub>2</sub></td></tr>');
+                html.push('</tbody></table>');
+                res.innerHTML = html.join('');
+            } else {
+                showResults(data.results, data.limits);
+            }
+        } else if (kind == "error") {
+            var res = document.getElementById('results');
+            if (res != null) res.innerHTML = data.message;
+            else setText(data.message);
+        } else if (kind == "reauthenticate") {
+            socket.close();
+            //window.location.reload(false);
+            //setText("Unexpected message \""+kind+"\" (please report this to the professor if it stays on the screen)");
+        } else {
+            setText("Unexpected message \""+kind+"\" (please report this to the professor)");
+        }
+    }
+    socket.onclose = function() {
+        setText("connection closed; save any unsubmitted work elsewhere and then reload the page to make a new connection.");
+        //var now = new Date().getTime();
+        //if (loaded_at +10*1000 < now) // at least 10 seconds to avoid refresh frenzy
+            //setTimeout(function(){window.location.reload(false);}, 10);
+    }
+    socket.onerror = function() {
+        setText("error connecting to server");
+    }
+}
+
+function nickname() {
+    console.log('nickname',name);
+    var name = document.getElementById('nick').value;
+    socket.send(JSON.stringify({req:'nickname',name:name}));
+}
+function submit(name) {
+    console.log('submit',name);
+    var code = document.getElementById('code').value;
+    socket.send(JSON.stringify({req:'code',code:code,task:name}));
+}
+function request(name) {
+    console.log('request',name);
+    socket.send(JSON.stringify({req:'task',task:name}));
+}
+function scoreboard(name) {
+    console.log('scoreboard',name);
+    socket.send(JSON.stringify({req:'scores',task:name}));
+}
+
+function getBaseURL() {
+    var wsurl = "ws://" + window.location.hostname+':8080'
+    return wsurl;
+}
+
+function setText(text) {
+    console.log("text: ", text);
+    if (socket && socket.readyState >= socket.CLOSING) {
+        text = "(unconnected) "+text;
+        document.title = "(unconnected) Office Hours";
+    }
+    document.getElementById("console").innerHTML += "\n"+text;
+}
+function setPage(html) {
+    if(typeof(html) == 'string') document.getElementById('content').innerHTML = html;
+    else document.getElementById('content').innerHTML = html.join('');
+}
+
+//--></script></head>
+<body onload="connect()">
+<div id="content"></div>
+<pre id="console">(client-server status log)</pre>
+<a href=".">Click here to reload page (loses all unsubmitted work)</a>
+</body>

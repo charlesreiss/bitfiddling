@@ -1,0 +1,14 @@
+{
+	"name": "bitfiddle",
+	"authors": [
+		"Luther Tychonievich"
+	],
+	"dependencies": {
+		"vibe-d": "~>0.9",
+        "dateparser": "~>3"
+	},
+    "versions": ["VibeDefaultMain"],
+	"description": "A binary operation testing tool",
+	"copyright": "Copyright © 2018, Luther Tychonievich",
+	"license": "proprietary"
+}
