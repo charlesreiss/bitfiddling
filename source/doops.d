@@ -1,4 +1,5 @@
 import lexparse;
+import std.conv;
 
 private ASTNode discard(ASTNode nodes) { return ASTNode(nodes.kind, null); }
 private ASTNode selector(n...)(ASTNode nodes) {
@@ -22,7 +23,7 @@ private ASTNode listify(int here, int delim, int recur)(ASTNode nodes) {
 private Parser p;
 static this() {
     auto lex = new Lexer!();
-    auto white = lex.pattern(`(\s|//[^\n\r]*|/\*.*?\*/)+`, ` `);
+    auto white = lex.pattern(`(\s|//[^\n\r]*|/\*(.|[\n\r])*?\*/)+`, ` `);
     auto hex = lex.pattern(`\b0[xX][0-9a-fA-F]+\b`, `h`);
     auto dec = lex.pattern(`\b[1-9][0-9]*\b`, `d`);
     auto oct = lex.pattern(`\b0[0-7]*\b`, `o`);
@@ -98,6 +99,13 @@ class BadExpression : Exception {
     }
 }
 
+class ExpressionRuntimeError : Exception {
+    this(R...)(R msg) {
+        import std.conv : text;
+        super(text(msg));
+    }
+}
+
 bool isIdentifier(string s) {
     import std.uni;
     if (s.length < 0) return false;
@@ -129,17 +137,32 @@ void checkTree(ASTNode t, ref int[string] values, ref int[string] opcount) {
             values[t.kids[0].payload] = 0;
             break;
         case `h`:
-            int n = cast(int)to!uint(t.payload[2..$], 16);
+            int n;
+            try {
+                n = cast(int)to!uint(t.payload[2..$], 16);
+            } catch (std.conv.ConvOverflowException e) {
+                throw new BadExpression(`constant "`, t.payload,`" too big`);
+            }
             int bits = (n==0?0:core.bitop.bsr(n)+1);
             if (bits > opcount.get(`const`,0)) opcount[`const`] = bits;
             break;
         case `o`:
-            int n = cast(int)to!uint(t.payload, 8);
+            int n;
+            try {
+                n = cast(int)to!uint(t.payload, 8);
+            } catch (std.conv.ConvOverflowException e) {
+                throw new BadExpression(`constant "`, t.payload,`" too big`);
+            }
             int bits = (n==0?0:core.bitop.bsr(n)+1);
             if (bits > opcount.get(`const`,0)) opcount[`const`] = bits;
             break;
         case `d`:
-            int n = cast(int)to!uint(t.payload, 10);
+            int n;
+            try {
+                n = cast(int)to!uint(t.payload, 10);
+            } catch (std.conv.ConvOverflowException e) {
+                throw new BadExpression(`constant "`, t.payload,`" too big`);
+            }
             int bits = (n==0?0:core.bitop.bsr(n)+1);
             if (bits > opcount.get(`const`,0)) opcount[`const`] = bits;
             break;
@@ -160,6 +183,22 @@ void checkTree(ASTNode t, ref int[string] values, ref int[string] opcount) {
         default:
             throw new BadExpression("Something you typed confused our parser\n    Parser state: ", t);
     }
+}
+
+int checkShiftWidth(int shiftWidth, string operator) {
+    if (shiftWidth < 0) {
+        throw new ExpressionRuntimeError("'", operator, "' using negative shift width of ", shiftWidth);
+    } else if (shiftWidth >= 32) {
+        throw new ExpressionRuntimeError("'", operator, "' using shift width of ", shiftWidth, " (greater than limit 31)");
+    }
+    return shiftWidth;
+}
+
+int checkDivideByZero(int divisor, string operator) {
+    if (divisor == 0) {
+        throw new ExpressionRuntimeError("divide by zero in '", operator, "'");
+    }
+    return divisor;
 }
 
 /**
@@ -183,12 +222,12 @@ int delegate(ref int[string]) toFunc(ASTNode t) {
             switch(t.kids[1].payload) {
                 case `=`: return (ref int[string] env) => env[dst] = rhs(env);
                 case `*=`: return (ref int[string] env) => env[dst] *= rhs(env);
-                case `/=`: return (ref int[string] env) => env[dst] /= rhs(env);
-                case `%=`: return (ref int[string] env) => env[dst] %= rhs(env);
+                case `/=`: return (ref int[string] env) => env[dst] /= checkDivideByZero(rhs(env), "/=");
+                case `%=`: return (ref int[string] env) => env[dst] %= checkDivideByZero(rhs(env), "%=");
                 case `+=`: return (ref int[string] env) => env[dst] += rhs(env);
                 case `-=`: return (ref int[string] env) => env[dst] -= rhs(env);
-                case `<<=`: return (ref int[string] env) => env[dst] <<= rhs(env);
-                case `>>=`: return (ref int[string] env) => env[dst] >>= rhs(env);
+                case `<<=`: return (ref int[string] env) => env[dst] <<= checkShiftWidth(rhs(env), "<<=");
+                case `>>=`: return (ref int[string] env) => env[dst] >>= checkShiftWidth(rhs(env), ">>=");
                 case `&=`: return (ref int[string] env) => env[dst] &= rhs(env);
                 case `^=`: return (ref int[string] env) => env[dst] ^= rhs(env);
                 case `|=`: return (ref int[string] env) => env[dst] |= rhs(env);
@@ -222,12 +261,12 @@ int delegate(ref int[string]) toFunc(ASTNode t) {
             auto rhs = toFunc(t.kids[2]);
             switch(t.kids[1].payload) {
                 case `*`: return (ref int[string] env) => lhs(env)*rhs(env);
-                case `/`: return (ref int[string] env) => lhs(env)/rhs(env);
-                case `%`: return (ref int[string] env) => lhs(env)%rhs(env);
+                case `/`: return (ref int[string] env) => lhs(env)/checkDivideByZero(rhs(env), "/");
+                case `%`: return (ref int[string] env) => lhs(env)%checkDivideByZero(rhs(env), "%");
                 case `+`: return (ref int[string] env) => lhs(env)+rhs(env);
                 case `-`: return (ref int[string] env) => lhs(env)-rhs(env);
-                case `<<`: return (ref int[string] env) => lhs(env)<<rhs(env);
-                case `>>`: return (ref int[string] env) => lhs(env)>>rhs(env);
+                case `<<`: return (ref int[string] env) => lhs(env)<<checkShiftWidth(rhs(env), "<<");
+                case `>>`: return (ref int[string] env) => lhs(env)>>checkShiftWidth(rhs(env), ">>");
                 case `&`: return (ref int[string] env) => lhs(env)&rhs(env);
                 case `^`: return (ref int[string] env) => lhs(env)^rhs(env);
                 case `|`: return (ref int[string] env) => lhs(env)|rhs(env);

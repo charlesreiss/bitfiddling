@@ -348,11 +348,20 @@ class Parser {
     
     ASTNode[] finish(int i=-1) {
         ASTNode[] ans;
+        int matches = 0;
         foreach(t; this.table[i<0 ? $-1: i].states) {
             if(t.rule.name == grammar.start
             && t.isComplete
-            && t.reference == 0)
+            && t.reference == 0) {
+                matches += 1;
                 ans ~= t.data;
+            }
+        }
+        if (matches > 1) {
+            throw new ParsingError("Multiple matches for parse?");
+        }
+        if (matches == 0) {
+            throw new ParsingError("Unexpected end of input");
         }
         return ans;
     }
