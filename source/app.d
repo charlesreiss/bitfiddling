@@ -30,11 +30,9 @@ static import tasks;
 import persaa;
 
 /**
- * scores["mst3k"]["anybit"] = ["+":3, "&":2, "ops":5, "score":100];
- * scores["mst3k"]["bitcount"] = ["+":31, ">>":31, "&":32, "ops":94, "score":50];
- * scores["mst3k"]["mystery"] = ["score":0];
+ * scores["mst3k"]["anybit"] = Json(["stats": Json("+":3, "&":2, "ops":5), "score":Json(100)]);
  */
-Persistent!(int[string][string][string])* scores;
+Persistent!(Json[string][string])* scores;
 /**
  * nicknames["lat7h"] = "the Prof"
  */
@@ -124,7 +122,7 @@ class WebsocketService {
                         foreach(n,_; tasks.three) msg[n] = Json(null);
                         if(user in scores.data) {
                             synchronized(scores.mutex.reader) {
-                                foreach(n,v; scores.data[user]) msg[n] = Json(cast(int)v[`score`]);
+                                foreach(n,v; scores.data[user]) msg[n] = v;
                             }
                         }
                         socket.send(serializeToJsonString([
@@ -144,17 +142,17 @@ class WebsocketService {
                         string code = data[`code`].get!string;
                         string task = data[`task`].get!string;
                         
-                        string msg; int[string] use; int score; bool ok;
+                        string msg; int[string] stats; int[string] vars; int score; bool ok;
                         int[string] limits;
                         try {
                             if (task in tasks.one) {
-                                ok = tasks.one[task].check(code, msg, use, score);
+                                ok = tasks.one[task].check(code, msg, stats, vars, score);
                                 limits = tasks.one[task].limits;
                             } else if (task in tasks.two) {
-                                ok = tasks.two[task].check(code, msg, use, score);
+                                ok = tasks.two[task].check(code, msg, stats, vars, score);
                                 limits = tasks.two[task].limits;
                             } else if (task in tasks.three) {
-                                ok = tasks.three[task].check(code, msg, use, score);
+                                ok = tasks.three[task].check(code, msg, stats, vars, score);
                                 limits = tasks.three[task].limits;
                             }
                             else { ok = false; msg = "Unknown task: "~task; }
@@ -165,28 +163,41 @@ class WebsocketService {
                             logInfo("%s", ex);
                         }
                         //else { ok = false; msg = "Unknown task: "~task; }
-                        if (!ok) err(msg);
-                        else {
-                            use[`score`] = score;
-                            scores.set(use, user, task);
+                        if (!ok) {
+                            socket.send(serializeToJsonString([
+                                "type":"compile-error",
+                                "message":msg,
+                            ]));
+                        } else {
+                            scores.set(
+                                Json([
+                                    "score":Json(score),
+                                    "vars":serializeToJson(vars),
+                                    "stats":serializeToJson(stats),
+                                ]),
+                                user, task
+                            );
                             lastCode.set(code, user, task);
+                            logInfo("ready to socket send");
                             socket.send(serializeToJsonString([
                                 "type":Json("results"),
                                 "message":Json(msg),
                                 "limits":serializeToJson(limits),
-                                "results":serializeToJson(use),
+                                "stats":serializeToJson(stats),
+                                "vars":serializeToJson(vars),
+                                "score":Json(score),
                             ]));
                         }
                     } break;
                     case `scores`: {
                         // fix me: show detailed scoreboard for all nicknamed people who did that task
                         string task = data[`task`].get!string;
-                        int[string][string] board;
+                        Json[string] board;
                         synchronized(nicknames.mutex.reader) {
                         synchronized(scores.mutex.reader) {
                             foreach(u,name; nicknames.data) if (name.length > 0) {
                                 if(u in scores.data && task in scores.data[u]) {
-                                    if (scores.data[u][task]["score"] >= 100)
+                                    if (scores.data[u][task][`score`].get!int >= 100)
                                         board[name] = scores.data[u][task];
                                 }
                             }

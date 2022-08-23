@@ -336,17 +336,19 @@ class Task(int n) {
      * 
      * return value: false if there was an error
      * message: textual summary for the user
-     * stats: op counts if successful (score > 0), failing case otherwise
+     * stats: op counts 
+     * vars: failing case if not successful (score == 0), unmodified otherwise
      * score: 0 if failed a case, 25 if passed with illegal ops, 50 if passed with legal ops, 100 if passed with few enough legal ops
      * 
      *  25: passed 
      *  50: only allowed ops and small enough constants
      */
-    bool check(string code, out string message, out int[string] stats, out int score) {
+    bool check(string code, out string message, out int[string] stats, out int[string] vars, out int score) {
         static import doops, lexparse;
         import std.conv : text;
         try {
             auto c = doops.BitCode(code, provided);
+            stats = c.statistics.dup;
             int[string] env;
             int passed = 0;
             foreach(vals; cases) {
@@ -355,27 +357,31 @@ class Task(int n) {
                 static foreach(i; 0..n) env[provided[i]] = vals[i];
                 try {
                     c.compiled(env);
+                } catch (doops.ExpressionRuntimeError ex) {
+                    score = 0;
+                    vars = env.dup;
+                    message = text("Test case #", passed, ":<br>", ex.msg);
+                    return true;
                 } catch (Throwable ex) {
                     score = 0;
-                    stats = env.dup;
+                    vars = env.dup;
                     message = text("Test case #", passed, " attempted the impossible and crashed");
                     return true;
                 }
                 try {
                     if (!checker(env)) {
                         score = 0;
-                        stats = env.dup;
+                        vars = env.dup;
                         message = text("Failed test case #", passed);
                         return true;
                     }
                 } catch (Throwable ex) {
                     score = 0;
-                    stats = env.dup;
+                    vars = env.dup;
                     message = "Error trying to check your answer; did you set all requested variables?";
                     return true;
                 }
             }
-            stats = c.statistics.dup;
             score = 50;
             message = "Passed all test cases";
             foreach(k,v; stats)

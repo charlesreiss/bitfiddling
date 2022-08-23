@@ -5,6 +5,7 @@
     th,td { align: left; }
     body, code, pre, tt, input, textarea { font-size: 12pt; line-height: 1.5em; }
     code { padding: 1px; border: 1px solid rgba(0,0,0,0.125); background: rgba(0,0,0,0.0625);  border-radius:4px; }
+    .compile { font-weight: bold; }
 </style>
 <script>//<!--
 
@@ -26,32 +27,40 @@ var loaded_at = new Date().getTime();
 
 var allops = ["!","~", "*","%","/", "+","-", "<<",">>", "&","^","|"];
 
-function resultRow(html, display, key, results, limit) {
-    if (key in results && results[key] != 0) {
+function resultRow(html, display, key, stats, limit) {
+    if (key in stats && stats[key] != 0) {
         html.push('<tr><th>',display,'</th><td>');
-        html.push(results[key]);
+        html.push(stats[key]);
         if (key in limit && limit[key] >= 0) {
             var tmp = limit[key];
-            if (limit[key] < results[key]) html.push(' (<span class="error">limit: ', tmp,'</span>)');
+            if (limit[key] < stats[key]) html.push(' (<span class="error">limit: ', tmp,'</span>)');
             else                           html.push(' (<span class="good">limit: ', tmp,'</span>)');
         }
         html.push('</td></tr>');
     }
 } 
 
-function showResults(results, limits) {
+function showResults(score, stats, limits) {
     var html = [
         'As time of last submission, your results were:',
         '<table><tbody>',
-        '<tr><th>Score</th><td>', results.score, '%</td></tr>'
+        '<tr><th>Score</th><td>', score, '%</td></tr>'
     ];
-    resultRow(html, 'Total ops', 'ops', results, limits);
-    resultRow(html, 'Const bits', 'const', results, limits);
+    resultRow(html, 'Total ops', 'ops', stats, limits);
+    resultRow(html, 'Const bits', 'const', stats, limits);
 
     for(var i=0; i<allops.length; i+=1) {
-        resultRow(html, '<code>'+allops[i]+'</code>', allops[i], results, limits)
+        resultRow(html, '<code>'+allops[i]+'</code>', allops[i], stats, limits)
     }
     document.getElementById('results').innerHTML = html.join('');
+}
+
+function formatSummaryLine(html, k, v) {
+    html.push('<tr><td><input type="button" value="',k,
+        '" onclick="request(\'',k,'\')"></td><td>',
+        v === null ? 'not started' : v.score+'%',
+        '</td><td><input type="button" value="',k,
+        '" onclick="scoreboard(\'',k,'\')"></td></tr>');
 }
 
 function connect() {
@@ -82,31 +91,25 @@ function connect() {
             html.push('</tr></thead><tbody>');
             for(var k in data['board']) {
                 html.push('<tr><th>',k.replace(/[^-_A-Za-z0-9 ]/g, ''),'</th>');
-                if ('ops' in data.board[k]) html.push('<td>',data.board[k].ops,'</td>');
+                if ('ops' in data.board[k].stats) html.push('<td>',data.board[k].stats.ops,'</td>');
                 else html.push('<td/>');
-                if ('const' in data.board[k]) html.push('<td>',data.board[k]['const'],'</td>');
+                if ('const' in data.board[k].stats) html.push('<td>',data.board[k].stats.const,'</td>');
                 else html.push('<td/>');
                 for(var i=0; i<allops.length; i+=1) 
-                    if (allops[i] in data['board'][k] && data.board[k][allops[i]] != 0)
-                        html.push('<td>',data['board'][k][allops[i]],'</td>');
+                    if (allops[i] in data['board'][k].stats && data.board[k].stats[allops[i]] != 0)
+                        html.push('<td>',data['board'][k].stats[allops[i]],'</td>');
                     else
                         html.push('<td></td>');
                 html.push('</tr>');
             }
             html.push('</tbody></table>');
+            html.push('<input type="button" onclick="main()" value="back to index"></input>');
             setPage(html);
         } else if (kind == "you") {
             var html = ['<table><thead><tr><th>Task</th><th>Status</th><th>Scoreboard</th></tr></thead><tbody>'];
             var keys = Object.keys(data['status'])
             keys.sort((x,y) => (data.order.indexOf(x)&0xffff) - (data.order.indexOf(y)&0xffff))
-            keys.forEach(k => {
-                var v = data['status'][k];
-                html.push('<tr><td><input type="button" value="',k,
-                    '" onclick="request(\'',k,'\')"></td><td>',
-                    v === null ? 'not started' : v+'%',
-                    '</td><td><input type="button" value="',k,
-                    '" onclick="scoreboard(\'',k,'\')"></td></tr>');
-            })
+            keys.forEach(k => formatSummaryLine(html, k, data['status'][k]))
             html.push('</tbody></table>');
             html.push(
                 '<p>Name to show on scoreboards: <input type="text" id="nick" name="nick" value="',
@@ -134,36 +137,38 @@ function connect() {
             }
             html.push(
                 '</p>',
-                '<textarea id="code" name="code" rows="20" cols="60"></textarea><br/>',
+                '<textarea id="code" name="code" rows="20" cols="60" onchange="note_change()"></textarea><br/>',
                 '<input type="button" onclick="submit(\'',data.task,'\')" value="submit code"></input>',
+                '<div id="compile-error" class="compile"></div>',
                 '<div id="results"></div>',
             );
             setPage(html);
             if (data.code) // this way to ensure escaping...
                 document.getElementById('code').appendChild(document.createTextNode(data.code));
             if (data.results) // this way to avoid code duplication
-                showResults(data.results, data.limits);
+                showResults(data.results.score, data.results.stats, data.limits);
         } else if (kind == "results") {
-            if(data.results.score == 0) {
+            var error = document.getElementById('compile-error');
+            error.innerHTML = "";
+            if(data.score == 0) {
                 var res = document.getElementById('results');
                 var html = [
                     '<p>', data.message, '</p>',
                     '<table><thead><th>Variable</th><th>Value</th></thead><tbody>'
                 ];
-                for(var n in data.results) if (n != 'score') {
+                for(var n in data.vars) if (n != '__ignored__') {
                     var tmp = new Uint32Array(1);
-                    tmp[0] = data.results[n];
-                    html.push('<tr><td><code>',n,'</code></td><td>',tmp[0].toString(2),'<sub>2</sub> (',data.results[n],')</td></tr>');
+                    tmp[0] = data.vars[n];
+                    html.push('<tr><td><code>',n,'</code></td><td>',tmp[0].toString(2),'<sub>2</sub> (',data.vars[n],')</td></tr>');
                 }
                 html.push('</tbody></table>');
                 res.innerHTML = html.join('');
             } else {
-                showResults(data.results, data.limits);
+                showResults(data.score, data.stats, data.limits);
             }
-        } else if (kind == "error") {
-            var res = document.getElementById('results');
-            if (res != null) res.innerHTML = data.message;
-            else setText(data.message);
+        } else if (kind == "compile-error") {
+            var error = document.getElementById('compile-error');
+            error.innerHTML = "ERROR: " + data.message;
         } else if (kind == "reauthenticate") {
             setText("connection closed; save your work outside this window and then reload page to make a new connection.");
             //window.location.reload(false);

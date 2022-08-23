@@ -21,11 +21,14 @@ private {
             }
         } else dest = log.get!T;
     }
+    void unlogTo(Json log, ref Json dest) {
+        dest = log;
+    }
 }
 
 /// primitive or string values in associative array with string keys, at any depth
 template persistableType(T) {
-    static if (is(T:long) || is(T:real) || is(T:string))
+    static if (is(T:long) || is(T:real) || is(T:string) || is(T:Json))
         enum bool persistableType = true;
     else static if (__traits(isAssociativeArray, T) && is(string : typeof(T.init.keys[0]))) 
         enum bool persistableType = persistableType!(typeof(T.init[``]));
