@@ -423,7 +423,7 @@ static this() {
         }
     );
     one[`endian`] = Task!1.make!TestCaseGenerator(
-        "set `y` to an endian-swapped version of `x`. Constants cannot exceed 8 bits.",
+        "set `y` to an endian-swapped version of `x`",
         [`ops`:15, `const`:8,
         `!`:-1,`~`:-1, `+`:-1,`-`:-1, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`x`], (int[string] e){
