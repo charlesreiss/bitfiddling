@@ -369,7 +369,6 @@ class Task(int n) {
 Task!1[string] one;
 Task!2[string] two;
 Task!3[string] three;
-string[] order;
 
 static this() {
     two[`subtract`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
@@ -377,6 +376,30 @@ static this() {
         [`ops`:10, `const`:1,
         `!`:-1,`~`:-1, `+`:-1,`-`:0, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`x`, `y`], (int[string] e) => (e.get(`z`,0xdeadbeef) == (e[`x`] - e[`y`]))
+    );
+    two[`isequal`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
+        "set `z` to `1` if `x == y`; otherwise set `z` to `0` without using == or multi-bit constants.",
+        [`ops`:5, `const`:1,
+        `!`:-1,`~`:-1, `+`:-1,`-`:0, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`, `y`], (int[string] e) {
+            if (e[`x`] == e[`y`]) {
+                return e.get(`z`, 0xdeadbeef) == 1;
+            } else {
+                return e.get(`z`, 0xdeadbeef) == 0;
+            }
+        }
+    );
+    two[`islessorequal`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
+        "set `z` to `1` if `x <= y`; otherwise set `z` to `0`.",
+        [`ops`:24, `const`:1,
+        `!`:-1,`~`:-1, `+`:-1,`-`:-1, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`, `y`], (int[string] e) {
+            if (e[`x`] <= e[`y`]) {
+                return e.get(`z`, 0xdeadbeef) == 1;
+            } else {
+                return e.get(`z`, 0xdeadbeef) == 0;
+            }
+        }
     );
     one[`bottom`] = Task!1.make!(CTSet!(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32))(
         "set the low-order `b` bits of `x` to 1; the others to 0. For example, if `b` is 3, `x` should be 7. Pay special attention to the edge cases: if `b` is 32 `x` should be &minus;1; if `b` is 0 `x` should be 0. Do not use `-` in your solution.",
@@ -443,8 +466,46 @@ static this() {
             return e.get(`y`,0xdeadbeef) == z;
         }
     );
-
-    order = [`subtract`,`bottom`,`endian`,`bitcount`,`getbits`,`anybit`,`reverse`,`fiveeighths`];
+    one[`allevenbits`] = Task!1.make!TestCaseGenerator(
+        "set `y` to `1` if all the even-numbered bits of `x` are set to 1 (where bit 0 is the least significant bit); otherwise set `y` to `0`",
+        [`ops`:12,`const`:8,
+        `!`:-1,`~`:-1, `+`:-1,`-`:-1, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`], (int[string] e){
+            int x = e[`x`];
+            if ((x & 0x55555555) == 0x55555555) {
+                return e.get(`y`,0xdeadbeef) == 1;
+            } else {
+                return e.get(`y`,0xdeadbeef) == 0;
+            }
+        }
+    );
+    two[`addok`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
+        "set `z` to `1` if `x + y` will not overflow; otherwise set `z` to 0.",
+        [`ops`:20, `const`:8,
+        `!`:-1,`~`:-1, `+`:-1,`-`:-1,`*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`, `y`], (int[string] e) {
+            long lsum = cast(long)e[`x`] + cast(long)e[`y`];
+            if (e[`z`]) {
+                return lsum == cast(long)( cast(int)( lsum ) );
+            } else {
+                return lsum != cast(long)( cast(int)( lsum ) );
+            }
+        }
+    );
+    one[`evenbitparity`] = Task!1.make!(TestCaseGenerator)(
+        "set `y` to `0` if an even number of the even-indexed bits are 1; otherwise, set `y` to `1`. (Bit 0 of `x` is the 1s place.) For example: for x = 0, y should be 0 (no bits are 1); for x = 2, y should be 0 (all 1 bits are odd-numbered); for x = 3, y should be 1; for x = 5, y should be 0, for x = 21, y should be 1",
+        [`ops`:15, `const`:8,
+        `!`:-1,`~`:-1, `+`:-1,`-`:-1,`*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`], (int[string] e) {
+            int result = 0;
+            int i = 0;
+            int x = e[`x`];
+            for (i = 0; i < 32; i += 2) {
+                result ^= (x >> i) ^ 0x1;
+            }
+            return result == e.get(`y`, 0xdeadbeef);
+        }
+    );
 }
 
 version(none)
