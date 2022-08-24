@@ -26,6 +26,15 @@ file_put_contents("/opt/coa1-bithw/logs/sessions/$user", "$token");
 var user = "<?=$user;?>";
 var token = "<?=$token;?>";
 var loaded_at = new Date().getTime();
+var unsubmitted_changes = false;
+
+function note_change() {
+    unsubmitted_changes = true;
+}
+
+function clear_changes() {
+    unsubmitted_changes = false;
+}
 
 var allops = ["!","~", "*","%","/", "+","-", "<<",">>", "&","^","|"];
 
@@ -149,6 +158,8 @@ function connect() {
                 '<input type="button" onclick="submit(\'',data.task,'\')" value="submit code"></input>',
                 '<div id="compile-error" class="compile"></div>',
                 '<div id="results"></div>',
+                '<input type="button" onclick="submit(\'', data.task, '\');main()" value="save changes and back to index"></input>',
+                '<input type="button" onclick="main()" value="discard changes and back to index"></input>',
             );
             setPage(html);
             if (data.code) // this way to ensure escaping...
