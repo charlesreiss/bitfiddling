@@ -287,51 +287,6 @@ class Task(int n) {
     }
     
     /**
-     * Given a piece of code, return a JSON-encoded object.
-     * 
-     * Always includes "status" (one of "error", "failure", or "success").
-     * Always includes "message" (a string to show the user).
-     * 
-     * "failure" and "success" also include "stats", an object counting ops
-     * and noting the largest literal value used, as e.g. 
-     *      {"ops":12,"+":3,"~":2,"*":7,"const":255}
-     * 
-     * "failure" also includes "case", an object containing all variable setting
-     * when for the first test case that failed.
-     */
-    string check(string code) {
-        static import doops, lexparse;
-        import std.conv : text;
-        try {
-            auto c = doops.BitCode(code, provided);
-            int[string] env;
-            foreach(vals; cases) {
-                env.clear;
-                static foreach(i; 0..n) env[provided[i]] = vals[i];
-                try {
-                    c.compiled(env);
-                } catch {
-                    return `{"status":"failure","stats":`~escape_json(c.statistics)~`,"message":"Your answer tried to do impossible things and crashed","case":`~escape_json(env)~`}`;
-                }
-                try {
-                    if (!checker(env)) {
-                        return `{"status":"failure","stats":`~escape_json(c.statistics)~`,"message":"Failed a test case","case":`~escape_json(env)~`}`;
-                    }
-                } catch {
-                    return `{"status":"failure","stats":`~escape_json(c.statistics)~`,"message":"Error trying to check your answer; did you set all requested variables?","case":`~escape_json(env)~`}`;
-                }
-            }
-            return `{"status":"sucess","stats":`~escape_json(c.statistics)~`,"message":"Passed all test cases"}`;
-        } catch (lexparse.LexingError ex) {
-            return `{"status":"error","message":"`~escape_json(ex.msg)~`"}`;
-        } catch (lexparse.ParsingError ex) {
-            return `{"status":"error","message":"`~escape_json(ex.msg)~`"}`;
-        } catch (doops.BadExpression ex) {
-            return `{"status":"error","message":"`~escape_json(ex.msg)~`"}`;
-        }
-    }
-
-    /**
      * Variation on check with program-accessible info
      * 
      * return value: false if there was an error
