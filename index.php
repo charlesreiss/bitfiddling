@@ -236,7 +236,7 @@ function setText(text) {
     console.log("text: ", text);
     if (socket && socket.readyState >= socket.CLOSING) {
         text = "(unconnected) "+text;
-        document.title = "(unconnected) Office Hours";
+        document.title = "(unconnected) Bitwise operation practice";
     }
     document.getElementById("console").innerHTML += "\n"+text;
 }
