@@ -3,6 +3,8 @@
 <script src="showdown.js"></script>
 <style>
     th,td { align: left; }
+    th.taskgroup { background-color: rgba(90%, 90%, 90%, 1.0); }
+    body { background-color: white; color: black; }
     body, code, pre, tt, input, textarea { font-size: 12pt; line-height: 1.5em; }
     code { padding: 1px; border: 1px solid rgba(0,0,0,0.125); background: rgba(0,0,0,0.0625);  border-radius:4px; }
     .compile { font-weight: bold; }
@@ -107,9 +109,15 @@ function connect() {
             setPage(html);
         } else if (kind == "you") {
             var html = ['<table><thead><tr><th>Task</th><th>Status</th><th>Scoreboard</th></tr></thead><tbody>'];
-            var keys = Object.keys(data['status'])
-            keys.sort((x,y) => (data.order.indexOf(x)&0xffff) - (data.order.indexOf(y)&0xffff))
-            keys.forEach(k => formatSummaryLine(html, k, data['status'][k]))
+            data['task_groups'].forEach(group => {
+                if (group['name'] != '') {
+                    html.push('<tr><th class="taskgroup" colspan="3">', group['name'], '</th></tr>');
+                }
+                group['tasks'].forEach(task => {
+                    console.log('handling task ' + task + ' ' + data['status'][task]);
+                    formatSummaryLine(html, task, data['status'][task]);
+                });
+            });
             html.push('</tbody></table>');
             html.push(
                 '<p>Name to show on scoreboards: <input type="text" id="nick" name="nick" value="',

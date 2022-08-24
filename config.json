@@ -9,4 +9,8 @@
 ,"extensions":
     {"mst3k":3
     }
-}
+,"task_groups":[
+    {"name":""
+    ,"tasks":["subtract","bottom","endian","bitcount","getbits","anybit","reverse","fiveeighths"]
+    }
+]}

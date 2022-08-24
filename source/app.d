@@ -85,6 +85,15 @@ string lateness(string user, out bool open) {
     }
 }
 
+Json get_task_groups() {
+    try {
+        auto config = readFileUTF8(`config.json`).parseJsonString;
+        return config[`task_groups`];
+    } catch (Throwable ex) {
+        return Json();
+    }
+}
+
 class WebsocketService {
     // @path("/") void getHome() { render!("index.dt"); }
 
@@ -96,6 +105,7 @@ class WebsocketService {
         logInfo("Got new web socket connection.");
         scope(exit) logInfo("Client disconnected.");
         try {
+            auto task_groups = get_task_groups();
             if (!socket.waitForData) return;
             Json auth = socket.receiveText.parseJsonString;
             auto user = auth[`user`].get!string;
@@ -129,7 +139,7 @@ class WebsocketService {
                             "type":Json("you"),
                             "status":Json(msg),
                             "nickname":Json(nicknames.data.get(user, ``).replaceAll(ban_characters, ``)),
-                            "order":serializeToJson(tasks.order),
+                            "task_groups":task_groups,
                         ]));
                     } break;
                     case `code`: {
