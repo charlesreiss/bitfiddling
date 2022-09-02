@@ -371,6 +371,12 @@ Task!2[string] two;
 Task!3[string] three;
 
 static this() {
+    one[`thirdbits`] = Task!1.make!(EmptyGenerator)( // FIXME: needs zero
+        "set `x` to the constant 0x49249249 (which has every third bit set to 1)",
+        [`ops`:12,`const`:4,
+        `!`:-1,`~`:-1, `+`:-1,`-`:0, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`__ignored__`], (int[string] e) => (e.get(`x`, 0xdeadbeef) == 0x49249249),
+    );
     two[`subtract`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
         "set `z` to `x - y` without using `-` or multi-bit constants.",
         [`ops`:10, `const`:1,
