@@ -373,9 +373,21 @@ Task!3[string] three;
 static this() {
     one[`thirdbits`] = Task!1.make!(EmptyGenerator)( // FIXME: needs zero
         "set `x` to the constant 0x49249249 (which has every third bit set to 1)",
-        [`ops`:12,`const`:4,
+        [`ops`:12,`const`:8,
         `!`:-1,`~`:-1, `+`:-1,`-`:0, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`__ignored__`], (int[string] e) => (e.get(`x`, 0xdeadbeef) == 0x49249249),
+    );
+    one[`bang`] = Task!1.make!(TestCaseGenerator)(
+        "set `y` to 1 if `x` is zero and set `y` to 0 otherwise. (This is what `y = !x` would compute in C, but `!` is not a permitted operator.)",
+        [`ops`:12,`const`:5,
+        `!`:0,`~`:-1, `+`:-1,`-`:0, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
+        [`x`], (int[string] e) {
+            if (e[`x`] != 0) {
+                return e.get(`y`, 0xdeadbeef) == 0;
+            } else {
+                return e.get(`y`, 0xdeadbeef) == 1;
+            }
+        }
     );
     two[`subtract`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
         "set `z` to `x - y` without using `-` or multi-bit constants.",
