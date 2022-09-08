@@ -409,7 +409,7 @@ static this() {
     );
     two[`islessorequal`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
         "set `z` to `1` if `x <= y`; otherwise set `z` to `0`.",
-        [`ops`:24, `const`:1,
+        [`ops`:24, `const`:8,
         `!`:-1,`~`:-1, `+`:-1,`-`:-1, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`x`, `y`], (int[string] e) {
             if (e[`x`] <= e[`y`]) {
@@ -454,7 +454,7 @@ static this() {
         }
     );
     three[`getbits`] = Task!3.make2Idx(
-        "select bits `y` through `z-1` of `x` and return them in the low-order bits of `w`. For example, `getbits(0b1110_1100_1010,3,7)` would return 0b1001 = 9. You may assume 0 ≤ y < z ≤ 32. You'll probably want to include your solution to the \"bottom\" task in solving this task.",
+        "select bits `y` through `z-1` of `x` and return them in the low-order bits of `w`. For example, `getbits(0b1110_1100_1010,3,7)` would return 0b1001 = 9. You may assume 0 ≤ y < z ≤ 32. You'll probably want to include a solution to the \"bottom\" task in solving this task.",
         ["ops":15,
         `!`:-1,`~`:-1, `+`:-1,`-`:-1, `*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`x`,`y`,`z`], (int[string] e){
@@ -521,7 +521,7 @@ static this() {
             for (i = 0; i < 32; i += 2) {
                 result ^= (x >> i) ^ 0x1;
             }
-            return result == e.get(`y`, 0xdeadbeef);
+            return (result & 1) == (e.get(`y`, 0xdeadbeef));
         }
     );
 }
