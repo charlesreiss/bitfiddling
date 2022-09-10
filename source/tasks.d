@@ -498,7 +498,7 @@ static this() {
         }
     );
     two[`addok`] = Task!2.make!(SmallTestCaseGenerator,SmallTestCaseGenerator)(
-        "set `z` to `1` if `x + y` will not overflow; otherwise set `z` to 0.",
+        "set `z` to a true value (like 1) if `x + y` will not overflow; otherwise set `z` to 0.",
         [`ops`:20, `const`:8,
         `!`:-1,`~`:-1, `+`:-1,`-`:-1,`*`:0,`%`:0,`/`:0, `<<`:-1,`>>`:-1, `&`:-1,`^`:-1,`|`:-1],
         [`x`, `y`], (int[string] e) {
