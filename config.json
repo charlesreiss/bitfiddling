@@ -1,16 +1,18 @@
-{"ip":["128.143.67.106"]
-,"port":23101
-,"host":"kytos.cs.virginia.edu"
+{"ip":["128.143.63.49"]
+,"port":23102
+,"host":"kytos02.cs.virginia.edu"
 ,"certificate chain":"server.cer"
 ,"private key":"server-pk8.key"
-,"open":"2019-09-06 00:00:00"
-,"due":"2022-02-09 23:59:59"
-,"close":"2022-02-13 23:59:59"
+,"open":"2023-02-01 00:00:00"
+,"due":"2023-02-15 16:59:59"
+,"close":"2023-03-19 23:59:59"
 ,"extensions":
-    {"mst3k":3
-    }
+    {}
 ,"task_groups":[
-    {"name":""
-    ,"tasks":["subtract","bottom","endian","bitcount","getbits","anybit","reverse","fiveeighths"]
+    {"name":"Lab"
+    ,"tasks":["thirdbits","bang","isequal","bottom","islessorequal","bitcount"]
+    },
+    {"name":"Homework"
+    ,"tasks":["allevenbits","getbits","fiveeighths","addok","evenbitparity"]
     }
 ]}

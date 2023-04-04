@@ -1,11 +1,11 @@
 {
-	"name": "bitfiddle",
+	"name": "bit3330fiddle",
 	"authors": [
 		"Luther Tychonievich"
 	],
 	"dependencies": {
-		"vibe-d": "~>0.9",
-        "dateparser": "~>3"
+		"vibe-d": "~>0.9.4",
+        "dateparser": "~>3.0.4"
 	},
     "versions": ["VibeDefaultMain"],
 	"description": "A binary operation testing tool",

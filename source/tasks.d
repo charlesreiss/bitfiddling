@@ -138,6 +138,14 @@ private{
         int front() const { return next; }
         void popFront() { next += 0x61c88647; length -=1 ; }
     }
+    
+    struct onlyzero {
+        int next = 0;
+        uint length = 1;
+        bool empty() const { return next > 0; }
+        int front() const { return 0; }
+        void popFront() { next += 1; length -=1 ; }
+    }
 
     struct sampler(R...) {
         R gen;
@@ -168,6 +176,8 @@ alias TestCaseGenerator = sampler!(zero, oneHot, reps!2, twoHot, nHot!3, reps!5,
 
 /// About 150 test cases, suitable for multi-input testing
 alias SmallTestCaseGenerator = sampler!(zero, oneHot, reps!6);
+
+alias EmptyGenerator = sampler!(onlyzero);
 
 /// All combinations of several generators
 struct AllPerm(R...) {

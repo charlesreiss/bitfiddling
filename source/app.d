@@ -76,7 +76,7 @@ string lateness(string user, out bool open) {
         if (now < openat) { open = false; return text(`This assignment will open `, open); }
         if (now > close) { open = false; return text(`This assignment is now closed`); }
         open = true;
-        if (now < due) return text(`Open; due: `, due);
+        if (now < due) return text(`Assignment open`);
         return text(`Past-due; was due `, due, ` and closes `, close);
     } catch(Throwable ex) {
         logInfo("%s", ex);
